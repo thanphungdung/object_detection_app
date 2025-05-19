@@ -15,6 +15,7 @@ class EnsembleDetector:
         self.iou_thresh = iou_thresh
 
     def run_yolo(self,image, width, height):
+        """Run YOLOv5 on the image and return boxes, scores, and labels."""
         results = self.yolo(image)
         preds = results.pred[0].cpu().numpy() 
         
@@ -29,6 +30,7 @@ class EnsembleDetector:
         return boxes, scores, labels
 
     def run_ssd(self, image, w, h):
+        """Run SSD on the image and return boxes, scores, and labels."""
         image = image.resize((320, 320))
         preds = self.ssd([F.to_tensor(image)])[0]
         boxes, scores, labels = [], [], []
@@ -41,6 +43,7 @@ class EnsembleDetector:
                 labels.append(cid)
         return boxes, scores, labels
     def compute_iou(self,box1, box2):
+        """Compute Intersection over Union (IoU) between two boxes."""
         x1 = max(box1[0], box2[0])
         y1 = max(box1[1], box2[1])
         x2 = min(box1[2], box2[2])
@@ -53,6 +56,8 @@ class EnsembleDetector:
 
         return inter_area / union_area if union_area else 0
     def suppress_conflicting_classes(self,boxes, scores, labels, iou_thresh=0.7):
+        """Suppress boxes that have a high IoU with boxes of different classes.
+        This is to avoid conflicting detections because we use WBF which cobine boxes."""
         keep = [True] * len(boxes)
 
         for i in range(len(boxes)):
@@ -70,6 +75,7 @@ class EnsembleDetector:
         filtered_labels = [l for l, k in zip(labels, keep) if k]
         return filtered_boxes, filtered_scores, filtered_labels
     def predict(self, image, return_image=False):
+        """Run the ensemble model on the image and return boxes, scores, and labels."""
         original_image = image.copy()
         original_w, original_h = original_image.size
 
@@ -90,10 +96,24 @@ class EnsembleDetector:
             skip_box_thr=self.score_thresh
         )
         boxes, scores, labels = self.suppress_conflicting_classes(boxes, scores, labels, iou_thresh=0.7)
+        # Clean filtering for low confidence scores that < 0.3
+        final_boxes = []
+        final_scores = []
+        final_labels = []
 
+        for box, score, label in zip(boxes, scores, labels):
+            if score >= 0.3:
+                final_boxes.append(box)
+                final_scores.append(score)
+                final_labels.append(label)
+
+        boxes = final_boxes
+        scores = final_scores
+        labels = final_labels
         if return_image:
             draw = ImageDraw.Draw(image)
             try:
+                # Better look for score and class name original is hard to read
                 font = ImageFont.truetype("arial.ttf", size=20)
             except:
                 font = ImageFont.load_default()
