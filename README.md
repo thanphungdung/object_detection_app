@@ -29,8 +29,8 @@ Main dependencies:
 - `opencv-python` 
 
 ##  How to Set Up and Run the App
-### Step 1: Clone or unzip the project
-Unzip the folder and open a terminal in the project directory.
+### Step 1: Clone 
+Clone the GitHub repo to the local machine
 ### Step 2: Create and activate a virtual environment 
 python -m venv detection
 .\detection\Scripts\activate
